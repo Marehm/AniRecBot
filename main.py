@@ -2,8 +2,9 @@
 
 from transformers import pipeline
 from sentence_transformers import SentenceTransformer
-import faiss
 import numpy as np
+#import faiss
+
 
 pipe = pipeline("text2text-generation", model="google/flan-t5-large", device="cpu")
 model = SentenceTransformer('all-MiniLM-L6-v2')
