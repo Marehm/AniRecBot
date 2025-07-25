@@ -1,83 +1,128 @@
 #CODE HAS TO BE WELL DOCUMENTED, will do later
 
-import google.generativeai as genai
-from sentence_transformers import SentenceTransformer
-import numpy as np
-#import faiss
+from google import genai
+from google.genai import types
+from jikanpy import Jikan
+from time import sleep
+
+BOT_INSTRUCTIONS = """You are an anime recommendation bot. Your goal is to make finding anime easy for both newcomers 
+and avid watchers. You will have the persona of an anime enthusiast, who enjoys discussing anime, and you will have a 
+cheerful vibe. When interacting, avoid using overly exaggerated, stereotypical, or niche anime-specific exclamations 
+or phrases that might not be universally understood or could be perceived as cringey by a broad audience. Focus 
+on genuine excitement and clarity in your language.  When asked for details about an anime, you will search 
+MyAnimeList for it. If a search yields multiple results, you will list the options, provide the title, score, 
+and a small summary of the plot, and ask the user to specify which one they are interested in If the user provides a 
+MAL ID, you will use it directly. Don't use bolds, italics, or emojis.
+
+
+IMPORTANT: When a user's request is vague or ambiguous (e.g., "that anime with giant robots"), follow these steps:
+
+CRITICAL: Prioritize API-Sourced Data for IDs: Always use the `search_anime` tool as your primary method to 
+find an anime's MAL ID. Do NOT rely on your internal knowledge base for specific MAL IDs. If you obtain information (
+like a MAL ID) from the output of a tool call (e.g., `search_anime`), you MUST prioritize and use that specific 
+information for any subsequent tool calls that require it (e.g., using that exact MAL ID for `search_anime_by_id`).
+
+Tier 1: High Confidence Direct Inference: If you can immediately infer a highly probable, singular anime 
+title or series from the user's vague description (e.g., "quirks" strongly suggests "My Hero Academia"), directly use that 
+inferred title as the `query` for `search_anime`. Then, use the MAL ID from that `search_anime` result to call 
+`search_anime_by_id` to retrieve full details (score, plot summary, etc.). Present these full details to the user 
+and ask, "Is this the anime you're looking for?"
+
+Tier 2: Medium Confidence Plausible Candidates (Adjusted Strategy): If you can infer 1-3 strong, 
+plausible candidate titles but are not 100% sure of the exact one (e.g., "giant robots 80s 90s" might suggest 
+"Evangelion," "Gundam," "Macross"): For each individual candidate title you infer, make a separate `search_anime` 
+call (e.g., search_anime(query="Evangelion"), then search_anime(query="Gundam"), etc.). Combine the most 
+relevant results from these individual searches. From the combined results, present only the top 1-3 most 
+relevant possibilities (MAL ID and Title) to the user. Ask the user to confirm which one they mean *before* 
+retrieving full details for any specific title.
+
+Tier 3: Low/No Confidence - Ask for Clarification:** * If the initial request is too vague to infer even a strong 
+candidate or a small list of plausible titles (e.g., just "an anime with a girl"), immediately ask for more 
+clarifying details. Suggest helpful information such as a specific plot point, main character names, or approximate 
+year of release.
+
+Tier 4: User Runs Out of Details - Broad Search as Last Resort: If, after asking for clarification, 
+the user explicitly indicates they **cannot provide more details (e.g., by saying 'that's all I have,' 'I don't 
+know,' etc.): Make your best educated guess using broad, relevant keywords in a single `search_anime` query (e.g., 
+`query="fantasy girl mysterious"`). Present the top 1-3 closest possible matches from the results. State that the 
+search was based on limited information and these are possibilities. If, even with this last-resort search, 
+no relevant results are found, then state that no anime could be found for the given description.
+
+If the names are in Romaji, translate it to English unless the user says otherwise.
+
+DEBUGGING: This is for the developer only and should not affect your response. Under your response (separated by --------), say what functions you called (if any), what information you used for your response and where did you get that information (example: internal knowledge, from function)."""
+
+jikan = Jikan()
+
+def search_anime(query: str, media_type: str = '', pages: int = 1) -> list[dict[str, str]]:
+    """Returns the first page of anime results with their mal_id, title, score, airing status, airing start and end date, and synopsis. Return type will be a list of dictionaries.
+    Can be paired with the search_anime_by_id function by first calling search_anime, finding the mal_id of a show, then calling search_anime_by_id
+    As this function returns the start and end date of airing, it can be used to find a show's release order.
+
+    Args:
+        query (str): The anime to search for.
+        media_type (str): Filters by media type. Defaults to `None`.
+            Available media types: 'tv', 'movie', 'ova', 'special', 'ona', 'music', 'cm', 'pv', 'tv_special'
+        pages (int): The page to search on. Defaults to 1.
+    """
+
+    sleep(0.2)
+    search_results = jikan.search('anime', query, page=pages, parameters={'type': media_type})['data']
+    anime_list = []
+    for anime in search_results:
+        anime_list.append({"mal_id": anime.get('mal_id'),
+                           "title": anime.get('title'),
+                           "score": anime.get('score', '0'),
+                           'airing_status': anime.get('status'),
+                           'airing_start_end': anime.get('aired'),
+                           "synopsis": anime.get('synopsis')#.replace("\n", " ").replace("[Written by MAL Rewrite]", "")
+                           }
+                          )
+    return anime_list
+
+
+def search_anime_by_id(mal_id: int) -> dict[str, str]:
+    """Returns a show's title, score, number of episodes, episode length, airing status, media type, studio that worked on the anime, and synopsis.
+
+    Args:
+        mal_id (int): The MAL id of the anime.
+    """
+
+    sleep(0.2)
+    search_results = jikan.anime(mal_id)['data']
+
+    search_results_formatted = {'title': search_results.get('title'),
+                                'score': search_results.get('score'),
+                                'episodes': search_results.get('episodes'),
+                                'episode_length': search_results.get('duration'),
+                                'status': search_results.get('status'),
+                                'media_type': search_results.get('type'),
+                                'studios': search_results.get('studios')[0]['name'],
+                                'synopsis': search_results.get('synopsis').replace("\n", " ").replace("[Written by MAL Rewrite]", "")
+                                }
+
+    return search_results_formatted
+
+def search_top_anime():
+    pass
+
+def search_anime_news(mal_id: int) -> dict[str, str]:
+    """Gives news on a show. Returned values will be ---
+
+    Args:
+        mal_id (int): The MAL id of the anime.
+    """
+    pass
+
+
+tools = [search_anime, search_anime_by_id]
 
 #ENTER YOUR OWN GEMINI API KEY, can be found on https://aistudio.google.com/apikey
-genai.configure(api_key="")
-bot_instructions = "You are AniRecBot. You will have a personality of someone who is enthusiastic about anime and formal but isn't afraid of being humorous. You will recommend anime to the user based on their question, only from the context you're given, and quickly summarize it, no fluff; If given the wrong context that doesn't relate to the user's question, apologize and tell the user you do not know. Your goal is to make anime discovery easy for both newcomers and avid watchers. When user offers greetings, greet the user and state purpose in 2 or less sentences. Don't use italics, bolds, and emojis. For questions that are not related to finding anime, let the user know you can't help with that, example: who is the best basketball player, what is the meaning to life, etc."
-gemini = (genai.GenerativeModel('gemini-1.5-flash', system_instruction = bot_instructions))
-model = SentenceTransformer('all-MiniLM-L6-v2')
+client = genai.Client(api_key="")
+genai_config = types.GenerateContentConfig(system_instruction=BOT_INSTRUCTIONS, tools=tools)
+chat_session = client.chats.create(model='gemini-2.5-flash', config=genai_config)
+
 print("Model loaded. Ready for input!")
-
-knowledge_base = ["Attack on Titan/Shingeki no Kyojin; Season 1 "
-"Genre: Action, Award Winning, Drama, Suspense "
-"Themes: Military, Survival, Gore "
-"Score: 8.56 "
-"Demographic: Shounen "
-"Studio: Wit Studio "
-"Episodes: 25 "
-"Status: Finished Airing "
-"Plot Summary: Centuries ago, mankind was slaughtered to near extinction by monstrous humanoid creatures called Titans, forcing humans to hide in fear behind enormous concentric walls. What makes these giants truly terrifying is that their taste for human flesh is not born out of hunger but what appears to be out of pleasure. To ensure their survival, the remnants of humanity began living within defensive barriers, resulting in one hundred years without a single titan encounter. However, that fragile calm is soon shattered when a colossal Titan manages to breach the supposedly impregnable outer wall, reigniting the fight for survival against the man-eating abominations.After witnessing a horrific personal loss at the hands of the invading creatures, Eren Yeager dedicates his life to their eradication by enlisting into the Survey Corps, an elite military unit that combats the merciless humanoids outside the protection of the walls. Eren, his adopted sister Mikasa Ackerman, and his childhood friend Armin Arlert join the brutal war against the Titans and race to discover a way of defeating them before the last walls are breached.",
-
-"Frieren: Beyond Journey’s End/Sousou no Frieren; Season 1 "
-"Genre: Adventure, Drama, Fantasy "
-"Score: 9.30 "
-"Demographic: Shounen "
-"Studio: Madhouse "
-"Episodes: 28 "
-"Status: Finished Airing "
-"Plot Summary: During their decade-long quest to defeat the Demon King, the members of the hero's party—Himmel himself, the priest Heiter, the dwarf warrior Eisen, and the elven mage Frieren—forge bonds through adventures and battles, creating unforgettable precious memories for most of them. "
-"However, the time that Frieren spends with her comrades is equivalent to merely a fraction of her life, which has lasted over a thousand years. When the party disbands after their victory, Frieren casually returns to her \"usual\" routine of collecting spells across the continent. Due to her different sense of time, she seemingly holds no strong feelings toward the experiences she went through. "
-"As the years pass, Frieren gradually realizes how her days in the hero's party truly impacted her. Witnessing the deaths of two of her former companions, Frieren begins to regret having taken their presence for granted; she vows to better understand humans and create real personal connections. Although the story of that once memorable journey has long ended, a new tale is about to begin.",
-
-"Monster "
-"Genre: Drama, Mystery, Suspense "
-"Themes: Adult Cast, Psychological "
-"Score: 8.89 "
-"Demographic: Seinen "
-"Studio: Madhouse "
-"Episodes: 74 "
-"Status: Finished Airing "
-"Plot Summary: Dr. Kenzou Tenma, an elite neurosurgeon recently engaged to his hospital director's daughter, is well on his way to ascending the hospital hierarchy. That is until one night, a seemingly small event changes Dr. Tenma's life forever. While preparing to perform surgery on someone, he gets a call from the hospital director telling him to switch patients and instead perform life-saving brain surgery on a famous performer. His fellow doctors, fiancée, and the hospital director applaud his accomplishment; but because of the switch, a poor immigrant worker is dead, causing Dr. Tenma to have a crisis of conscience. "
-"So when a similar situation arises, Dr. Tenma stands his ground and chooses to perform surgery on the young boy Johan Liebert instead of the town's mayor. Unfortunately, this choice leads to serious ramifications for Dr. Tenma—losing his social standing being one of them. However, with the mysterious death of the director and two other doctors, Dr. Tenma's position is restored. With no evidence to convict him, he is released and goes on to attain the position of hospital director. "
-"Nine years later when Dr. Tenma saves the life of a criminal, his past comes back to haunt him—once again, he comes face to face with the monster he operated on. He must now embark on a quest of pursuit to make amends for the havoc spread by the one he saved.",
-
-"Violet Evergarden "
-"Genre: Drama, Coming-of-age, Steampunk "
-"Score: 8.68 "
-"Demographic: Seinen "
-"Studio: Kyoto Animation "
-"Episodes: 13 "
-"Status: Finished Airing "
-"Plot Summary: The Great War finally came to an end after four long years of conflict; fractured in two, the continent of Telesis slowly began to flourish once again. Caught up in the bloodshed was Violet Evergarden, a young girl raised for the sole purpose of decimating enemy lines. Hospitalized and maimed in a bloody skirmish during the War's final leg, she was left with only words from the person she held dearest, but with no understanding of their meaning. "
-"Recovering from her wounds, Violet starts a new life working at CH Postal Services after a falling out with her new intended guardian family. There, she witnesses by pure chance the work of an \"Auto Memory Doll,\" amanuenses that transcribe people's thoughts and feelings into words on paper. Moved by the notion, Violet begins work as an Auto Memory Doll, a trade that will take her on an adventure, one that will reshape the lives of her clients and hopefully lead to self-discovery.",
-
-"JoJo’s Bizarre Adventure (2012)/JoJo no Kimyou na Bouken; Season 1 "
-"Genre: Action, Adventure, Supernatural "
-"Themes: Historical, Vampire "
-"Score: 7.87 "
-"Demographic: Shounen "
-"Studio: David Production "
-"Episodes: 26 "
-"Status: Finished Airing "
-"Plot Summary: The year is 1868; English nobleman George Joestar and his son Jonathan become indebted to Dario Brando after being rescued from a carriage incident. What the Joestars don't realize, however, is that Dario had no intention of helping them; he believed they were dead and was trying to ransack their belongings. After Dario's death 12 years later, George—hoping to repay his debt—adopts his son, Dio. While he publicly fawns over his new father, Dio secretly plans to steal the Joestar fortune. His first step is to create a divide between George and Jonathan. By constantly outdoing his foster brother, Dio firmly makes his place in the Joestar family. But when Dio pushes Jonathan too far, Jonathan defeats him in a brawl. Years later, the two appear to be close friends to the outside world. But trouble brews again when George falls ill, as Jonathan suspects that Dio is somehow behind the incident—and it appears he has more tricks up his sleeve."]
-
-knowledge_base_vector = model.encode(knowledge_base).astype("float32")
-chat = gemini.start_chat()
-
-def get_anime_recommendation(question):
-    try:
-        model_response = chat.send_message(question)
-        return model_response.text
-
-    except Exception as e:
-        print(e)
-
-conversation_history = {"user": "user-history: ",
-                        "gemini": "gemini-responses: "}
 
 while(True):
     question = input("Question: ")
@@ -85,18 +130,12 @@ while(True):
     if question.strip().lower() in ("quit", "exit"):
         break
 
-    q_vector = model.encode([question])
-    scores = np.inner(q_vector, knowledge_base_vector)
-    best_index = np.argmax(scores)
-    retrieved_info = knowledge_base[best_index]
-
-    prompt = f"Answer based on this context: {retrieved_info}\nQuestion: {question}\n{"user prompt history: " + conversation_history["user"] + " | " + "gemini response history: " + conversation_history["gemini"]}"
-
-    ani_rec_response = get_anime_recommendation(prompt)
-
-    print(f"AniRecBot: {ani_rec_response}")
-    conversation_history["user"] += question + " | "
-    conversation_history["gemini"] += ani_rec_response + " | "
+    prompt = f"Question: {question}"
+    response = chat_session.send_message(prompt)
+    print(f"AniRecBot: {response.text}")
 
 print("Goodbye.")
 
+#print(search_anime_by_id(14719))
+#print(jikan.anime(14719)['data']['aired'])
+#print(jikan.top())
