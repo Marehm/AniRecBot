@@ -50,7 +50,7 @@ no relevant results are found, then state that no anime could be found for the g
 
 If the names are in Romaji, translate it to English unless the user says otherwise.
 
-DEBUGGING: This is for the developer only and should not affect your response. Under your response (separated by --------), say what functions you called (if any), what information you used for your response and where did you get that information (example: internal knowledge, from function)."""
+"""
 
 jikan = Jikan()
 
