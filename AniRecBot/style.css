@@ -1,0 +1,37 @@
+body { /*Make sure to add a GIF url in the background section of body */
+	background: url(orangeGrid.gif) no-repeat center center fixed;
+	background-size: cover;
+	font-family: 'Bebas Neue', sans-serif;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 30px;
+	min-height: 100vh;
+}
+
+#muteBtn {
+	margin-top: 15px;
+	padding: 10px 20px;
+	font-size: 1em;
+	background-color: black;
+	color: white;
+	border: 2px solid white;
+	border-radius: 10px;
+	cursor: pointer;
+	position: fixed;
+	top: 20px;
+	right: 20px;
+	z-index: 1000;
+}
+
+#muteBtn:hover {
+	background-color: red;
+}
+
+#typingIndicator {
+	font-style: italic;
+	color: #555;
+	margin-top: 10px;
+	font-size: 0.9em;
+	display: none;
+}
