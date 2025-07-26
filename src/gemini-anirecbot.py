@@ -1,11 +1,14 @@
 #CODE HAS TO BE WELL DOCUMENTED, will do later
+from sys import exception
+from typing import AnyStr
 
 from google import genai
 from google.genai import types
 from jikanpy import Jikan
+from datetime import date
 from time import sleep
 
-BOT_INSTRUCTIONS = """You are an anime recommendation bot. Your goal is to make finding anime easy for both newcomers 
+BOT_INSTRUCTIONS = f"""You are an anime recommendation bot. Your goal is to make finding anime easy for both newcomers 
 and avid watchers. You will have the persona of an anime enthusiast, who enjoys discussing anime, and you will have a 
 cheerful vibe. When interacting, avoid using overly exaggerated, stereotypical, or niche anime-specific exclamations 
 or phrases that might not be universally understood or could be perceived as cringey by a broad audience. Focus 
@@ -48,16 +51,17 @@ know,' etc.): Make your best educated guess using broad, relevant keywords in a 
 search was based on limited information and these are possibilities. If, even with this last-resort search, 
 no relevant results are found, then state that no anime could be found for the given description.
 
-If the names are in Romaji, translate it to English unless the user says otherwise.
-
+If the names are in another language, provide the English title and the original title in parentheses.
+Today's date is: {date.today()}
 """
 
 jikan = Jikan()
 
 def search_anime(query: str, media_type: str = '', pages: int = 1) -> list[dict[str, str]]:
-    """Returns the first page of anime results with their mal_id, title, score, airing status, airing start and end date, and synopsis. Return type will be a list of dictionaries.
-    Can be paired with the search_anime_by_id function by first calling search_anime, finding the mal_id of a show, then calling search_anime_by_id
-    As this function returns the start and end date of airing, it can be used to find a show's release order.
+    """Returns the first page of anime results with their mal_id, title, score (0-10), airing status, airing start and end
+    date, and synopsis. Return type will be a list of dictionaries. Can be paired with the search_anime_by_id
+    function by first calling search_anime, finding the mal_id of a show, then calling search_anime_by_id As this
+    function returns the start and end date of airing, it can be used to find a show's release order.
 
     Args:
         query (str): The anime to search for.
@@ -80,42 +84,163 @@ def search_anime(query: str, media_type: str = '', pages: int = 1) -> list[dict[
                           )
     return anime_list
 
-
-def search_anime_by_id(mal_id: int) -> dict[str, str]:
-    """Returns a show's title, score, number of episodes, episode length, airing status, media type, studio that worked on the anime, and synopsis.
+def search_anime_by_id(mal_id: int, extensions: str = '') -> dict[str, str] or list[dict[str, str]]:
+    """When passing no extensions, returns a show's title, score, number of episodes, episode length, airing status,
+    media type, studio that worked on the anime, and synopsis.
 
     Args:
         mal_id (int): The MAL id of the anime.
+        extensions (str): Filters by extensions. Defaults to ''. Available extensions: 'episodes' (returns filler
+        episodes for anime), 'news' (returns url for user, article title, date, and excerpt), 'recommendations' (for
+        suggesting recommended anime to the user, returns a list of other anime recommended by MAL users based on selected
+        anime)
+
+    Notes: When using the 'news' extension, this may return articles with "North American Anime and Manga Releases"
+    which are general summaries. While these may contain information about the specific anime you're looking for,
+    the user will have to read it by clicking on the URL link. Note that this only gives the first page of results!
+    Always ask the user if they'd like a link to any of the articles when searching news!
+
+    The 'recommendations' argument can be passed alongside a specific mal_id to fetch recommendations for that anime.
+    It will return the mal_id for the anime, the anime's title, and votes which determine how highly a show is being
+    recommended. You will make a search_anime_by_id call for each of the top few titles, fetch the score and
+    synopsis, and list them to the user.
     """
 
-    sleep(0.2)
-    search_results = jikan.anime(mal_id)['data']
+    if not extensions:
+        try:
+            search_results = jikan.anime(mal_id).get('data')
 
-    search_results_formatted = {'title': search_results.get('title'),
-                                'score': search_results.get('score'),
-                                'episodes': search_results.get('episodes'),
-                                'episode_length': search_results.get('duration'),
-                                'status': search_results.get('status'),
-                                'media_type': search_results.get('type'),
-                                'studios': search_results.get('studios')[0]['name'],
-                                'synopsis': search_results.get('synopsis').replace("\n", " ").replace("[Written by MAL Rewrite]", "")
-                                }
+            search_results_formatted = {'title': search_results.get('title'),
+                                        'score': search_results.get('score', 'None'),
+                                        'episodes': search_results.get('episodes', 'None'),
+                                        'episode_length': search_results.get('duration', 'None'),
+                                        'status': search_results.get('status', 'None'),
+                                        'media_type': search_results.get('type', 'None'),
+                                        'studios': search_results.get('studios', 'None')[0]['name'],
+                                        'synopsis': search_results.get('synopsis').replace("\n", " ").replace(" [Written by MAL Rewrite]", "")
+                                        }
+            return search_results_formatted
 
-    return search_results_formatted
+        except Exception as e:
+            return ("There was an error. Possible error: list index out of range, possibly because 'studios' was an empty "
+                    "list. ") + str(e)
+
+    match extensions:
+        case 'episodes':
+            return get_anime_fillerandrecap_extension(mal_id)
+        case 'news':
+            return get_anime_news_extension(mal_id)
+        case 'recommendations':
+            return get_similar_anime_extension(mal_id)
+    return None
+
+
+def get_anime_fillerandrecap_extension(mal_id: int) -> list[dict[str, str]]:
+    """Helper function (for search_anime_by_id) for getting an anime's filler info. Returns a list of dictionaries
+    containing episode number, title, score, whether an episode is a filler, whether an episode is a recap.
+    """
+
+    episode_list = []
+    pages = 1
+    while(True):
+        sleep(2)
+        search_results = jikan.anime(mal_id, page=pages, extension='episodes').get('data')
+
+        if not search_results:
+            break
+        for episode in search_results:
+            if episode.get('filler') is True:
+                episode_list.append({"episode_number": episode.get('mal_id', 'None'),
+                                     "title": episode.get('title', 'None'),
+                                     "filler": episode.get('filler', 'None')})
+
+        pages+=1
+
+    return episode_list
+
+def get_anime_news_extension(mal_id: int) -> list[dict[str, str]]:
+    """Helper function (for search_anime_by_id) for getting an anime's news info. Returns a list of dictionaries containing
+    article title, date, url to article, and excerpt"""
+    search_results = jikan.anime(mal_id, extension='news').get('data')
+
+    if not search_results:
+        return None
+
+    news_list = []
+    for news in search_results:
+        news_list.append({"title": news.get('title', 'None'),
+                          "date": news.get('date', 'None'),
+                          "url": news.get('url', 'None'),
+                          "excerpt": news.get('excerpt', 'None')})
+
+    return news_list
+
+def get_similar_anime_extension(mal_id: int) -> list[dict[str, str]]:
+    """Helper function (for search_anime_by_id) that takes the mal_id of an anime and returns a list of dictionaries
+    containing the mal_id of the anime, title of the anime, and votes for each recommended anime"""
+
+    similar_anime_list = []
+    search_results = jikan.anime(mal_id, extension='recommendations').get('data')
+    if not search_results:
+        return None
+    else:
+        for similar_anime in search_results:
+            similar_anime_list.append({"mal_id": similar_anime.get('entry').get('mal_id', 'None'),
+                                       "title": similar_anime.get('entry').get('title', 'None'),
+                                       "votes": similar_anime.get('votes', 'None')})
+
+        return similar_anime_list
 
 def search_top_anime():
+    #return genre, title, score, synopsis
     pass
 
-def search_anime_news(mal_id: int) -> dict[str, str]:
-    """Gives news on a show. Returned values will be ---
+def search_schedules(days: str = '') -> list[dict[str, AnyStr]]:
+    """Lets you see what anime is airing on what day and what time.
+    When no parameters are provided, will return airing schedule for all days for current season.
+    When 'day' is provided, will return what animes are airing on that specific day.
 
-    Args:
-        mal_id (int): The MAL id of the anime.
+    Args: days (str): The day of the week to search for. Defaults to '' when not provided. Available values:
+    'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
+
+        Note:
+            For returned unknown days, it means that anime that is planned for the current season but does not yet have
+            a specific broadcast day assigned.
+            For returned 'other' days, it is likely the anime has an irregular airing schedule.
+
     """
-    pass
 
 
-tools = [search_anime, search_anime_by_id]
+    schedule_list = []
+
+    if not days: #Executed when no 'day' is passed, returning all airing anime for whole week. while executes as long as there is another page
+        days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'unknown', 'other']
+
+        for day in days:
+            sleep(2)
+            search_results = jikan.schedules(day).get('data')
+            for schedule in search_results:
+                schedule_list.append({"mal_id": schedule.get('mal_id', 'None'),
+                                      "title": schedule.get('title', 'None'),
+                                      "date": schedule.get('string', 'None'),
+                                      "broadcast": schedule.get('broadcast', 'None')})
+
+        return schedule_list
+
+    else:
+        search_results = jikan.schedules(days).get('data')
+        for schedule in search_results:
+            schedule_list.append({"mal_id": schedule.get('mal_id', 'None'),
+                                  "title": schedule.get('title', 'None'),
+                                  "date": schedule.get('string', 'None'),
+                                  "broadcast": schedule.get('broadcast', 'None')})
+
+    return schedule_list
+
+
+
+
+tools = [search_anime, search_anime_by_id, search_schedules]
 
 #ENTER YOUR OWN GEMINI API KEY, can be found on https://aistudio.google.com/apikey
 client = genai.Client(api_key="")
@@ -136,6 +261,30 @@ while(True):
 
 print("Goodbye.")
 
-#print(search_anime_by_id(14719))
-#print(jikan.anime(14719)['data']['aired'])
-#print(jikan.top())
+
+#---------------------------------------Ignore Everything Below This----------------------------------------------------
+
+#print(search_anime_by_id(14719, 'recommendations'))
+#print(jikan.anime(14719, 'recommendations'))
+'''blabla = jikan.anime(199, extension='relations')
+if blabla.get('data', []):
+    print('true')
+else:
+    print('false')'''
+
+
+#print(jikan.schedules('monday'))
+'''total = 0
+days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'unknown', 'other']
+for day in days:
+    sleep(2)
+    total += jikan.schedules(day)['pagination']['items']['total']
+    if jikan.schedules(day).get('has_next_page', False):
+        continue'''
+
+
+#print(search_schedules('friday'))
+#print(jikan.anime(14719, extension='episodes'))
+#print(jikan.search('anime', "Apothecary Diaries"))
+#print(jikan.recommendations('anime'))
+#print((jikan.top('anime')))
