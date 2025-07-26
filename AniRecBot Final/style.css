@@ -1,0 +1,182 @@
+body { /*Make sure to add a GIF url in the background section of body */
+	background: url(orangeGrid.gif) no-repeat center center fixed;
+	background-size: cover;
+	font-family: 'Bebas Neue', sans-serif;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 30px;
+	min-height: 100vh;
+}
+
+#muteBtn {
+	margin-top: 15px;
+	padding: 10px 20px;
+	font-size: 1em;
+	background-color: black;
+	color: white;
+	border: 2px solid white;
+	border-radius: 10px;
+	cursor: pointer;
+	position: fixed;
+	top: 20px;
+	right: 20px;
+	z-index: 1000;
+}
+
+#muteBtn:hover {
+	background-color: red;
+}
+
+#typingIndicator {
+	font-style: italic;
+	color: #555;
+	margin-top: 10px;
+	font-size: 0.9em;
+	display: none;
+}
+
+#titleBox {
+    background-color: rgba(0, 0, 0, 0.8);
+    padding: 15px 30px;
+    border: #ebe3c7;
+    border-radius: 15px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+h1 {
+  color: #ffffff;
+  text-shadow: 1px 1px 2px #000;
+}
+
+#chatbox {
+   width: 90%;
+   max-width: 600px;
+   height: 500px;
+   background: #fff0f6;
+   border: 2px solid #ebe3c7;
+   border-radius: 20px;
+   padding: 20px;
+   overflow-y: auto;
+   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+   backdrop-filter: blur(10px);
+   background-color: rgba(0, 0, 0, .5); /*Last unit toggles opacity 1.0 for none, decrease for transparency*/
+}
+
+.bubble {
+   max-width: 70%;
+   padding: 10px 15px;
+   margin: 10px;
+   border-radius: 15px;
+   line-height: 1.4em;
+}
+
+.user {
+   background: white;
+   color: black;
+   border: 4px solid black;
+   align-self: flex-end;
+   text-align: right;
+   padding: 15px 20px;
+   margin-left: auto;
+   margin-right: 0;
+   /*margin: 15px;*/
+   width: 70%;
+   font-weight: bold;
+   position: relative;
+   transform: skew(-5deg);
+   box-shadow: 4px 4px 0 black;
+   word-wrap: break-word;
+   overflow-wrap: break-word;
+   overflow: hidden;
+   white-space: pre-wrap;
+}
+
+.user::after {
+   content: "";
+   position: absolute;
+   right: -15px;
+   bottom: 10px;
+   width: 0;
+   height: 0;
+   border-top: 10px solid transparent;
+   border-left: 15px solid black;
+   transform: rotate(-10deg);
+}
+
+.bot {
+   background: #fff;
+   color: black;
+   border: 4px solid black;
+   align-self: flex-start;
+   text-align: left;
+   padding: 15px 20px;
+   margin-left: 0;
+   margin-right: auto;
+   /*margin: 15px;*/
+   max-width: 70%;
+   font-weight: bold;
+   position: relative;
+   transform: skew(5deg);
+   box-shadow: 4px 4px 0 black;
+   word-wrap: break-word;
+   overflow-wrap: break-word;
+   overflow: hidden;
+   white-space: pre-wrap;
+}
+
+.bot::after {
+   content: "";
+   position: absolute;
+   left: -15px;
+   bottom: 10px;
+   width: 0;
+   height: 0;
+   border-top: 10px solid transparent;
+   border-right: 15px solid black;
+   transform: rotate(10deg);
+}
+
+#inputArea {
+   margin-top: 20px;
+   width: 90%;
+   max-width: 600px;
+   display: flex;
+}
+
+#message {
+   flex-grow: 1;
+   padding: 10px;
+   border-radius: 10px;
+   border: 2px solid #0000;
+   font-size: 1em;
+}
+
+#sendBtn {
+   padding: 10px 20px;
+   background: #000000;
+   color: white;
+   border: none;
+   border-radius: 10px;
+   margin-left: 10px;
+   cursor: pointer;
+}
+
+#sendBtn:hover {
+   background: #ff1493;
+}
+
+#muteBtn:hover {
+   background: red;
+   color: white;
+}
+
+#typingIndicator {
+   font-style: italic;
+   color: #555;
+   margin-top: 10px;
+   font-size: 0.9em;
+   display: none;
+}

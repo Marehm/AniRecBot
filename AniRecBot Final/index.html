@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>Proxy the Anime Recbot</title>
+  <style>
+    body {
+
+      /*background: linear-gradient(to bottom right, #fce3ec, #ffe6f0);*/
+      font-family: 'Comic Sans MS', cursive;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px;
+    }
+  </style>
+
+   
+</head> 
+
+<body>
+  <audio id="bg-music" loop autoplay muted>
+  <source src="Overcast.mp3" type="audio/mpeg">
+    Your browser does not support the audio element.
+</audio>
+
+<button id="muteBtn">Unmute</button>
+
+<div id="titleBox">
+  <h1>Proxy 💬</h1>
+</div>
+
+  <div id="chatbox"></div>
+
+  <div id="typingIndicator">Proxy is typing . . .</div>
+
+  <div id="inputArea">
+    <input type="text" id="message" placeholder="Enter message">
+    <button id="sendBtn">Send</button>
+  </div>
+
+  <script>
+    const chatbox = document.getElementById('chatbox');
+    const messageInput = document.getElementById('message');
+    const sendBtn = document.getElementById('sendBtn');
+
+    function appendMessage(content, sender) {
+      const bubble = document.createElement('div');
+      bubble.classList.add('bubble', sender);
+      bubble.innerText = content;
+      chatbox.appendChild(bubble);
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const message = messageInput.value.trim();
+      if (!message) return;
+
+      appendMessage(message, 'user');
+      messageInput.value = '';
+      document.getElementById('typingIndicator').style.display = 'block';
+
+      try {
+        const res = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+
+        const data = await res.json();
+        if (data.reply) {
+          appendMessage(data.reply, 'bot');
+        } else {
+          appendMessage("Oops! Something went wrong...", 'bot');
+        }
+      } catch (err) {
+        appendMessage("Nyaa~ server error! Gomen 😿", 'bot');
+      } finally {
+        document.getElementById('typingIndicator').style.display = 'none';
+      }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+  </script>
+
+  <script>
+  const bgMusic = document.getElementById('bg-music');
+  const muteBtn = document.getElementById('muteBtn');
+
+  function fadeInAudio(audio, duration = 2000) {
+    let volume = 0;
+    audio.volume = 0;
+    audio.muted = false;
+    const step = 0.1;
+    const interval = duration / (1 / step);
+    const fade = setInterval(() => {
+      volume += step;
+      if (volume >= 1) {
+        volume = 1;
+        clearInterval(fade);
+      }
+      audio.volume = volume;
+    }, interval);
+  }
+
+  muteBtn.addEventListener('click', () => {
+    if (bgMusic.muted || bgMusic.volume === 0) {
+      bgMusic.muted = false;
+      bgMusic.volume = 0;
+      bgMusic.play();
+      fadeInAudio(bgMusic);
+      muteBtn.textContent = 'Mute';
+    }else {
+      bgMusic.pause();
+      bgMusic.volume = 0;
+      bgMusic.muted = true;
+      muteBtn.textContent = 'Unmute';
+    }
+  });
+</script>
+</body>
+</html>
