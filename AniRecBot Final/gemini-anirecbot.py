@@ -118,7 +118,7 @@ def search_anime_news(mal_id: int) -> dict[str, str]:
 tools = [search_anime, search_anime_by_id]
 
 #ENTER YOUR OWN GEMINI API KEY, can be found on https://aistudio.google.com/apikey
-client = genai.Client(api_key="AIzaSyDg21oMu0hGCrG7lfQC2dia7Pb2Pd2tqNA")
+client = genai.Client(api_key="")
 genai_config = types.GenerateContentConfig(system_instruction=BOT_INSTRUCTIONS, tools=tools)
 chat_session = client.chats.create(model='gemini-2.5-flash', config=genai_config)
 
