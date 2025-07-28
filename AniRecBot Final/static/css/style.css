@@ -1,3 +1,7 @@
+{
+box-sizing: border-box;
+}
+
 body { /*Make sure to add a GIF url in the background section of body */
 	background: url(../images/orangeGrid.gif) no-repeat center center fixed;
 	background-size: cover;
@@ -53,13 +57,14 @@ h1 {
 
 #chatbox {
    width: 90%;
-   max-width: 600px;
+   max-width: 900px;
    height: 500px;
    background: #fff0f6;
    border: 2px solid #ebe3c7;
    border-radius: 20px;
    padding: 20px;
    overflow-y: auto;
+   overflow-x: hidden;
    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
    backdrop-filter: blur(10px);
    background-color: rgba(0, 0, 0, .5); /*Last unit toggles opacity 1.0 for none, decrease for transparency*/
@@ -83,7 +88,8 @@ h1 {
    margin-left: auto;
    margin-right: 0;
    /*margin: 15px;*/
-   width: 70%;
+   width: fit-content;
+   max-width: 100%
    font-weight: bold;
    position: relative;
    transform: skew(-5deg);
@@ -116,7 +122,8 @@ h1 {
    margin-left: 0;
    margin-right: auto;
    /*margin: 15px;*/
-   max-width: 70%;
+   max-width: 100%;
+   width: fit-content;
    font-weight: bold;
    position: relative;
    transform: skew(5deg);
@@ -175,7 +182,7 @@ h1 {
 
 #typingIndicator {
    font-style: italic;
-   color: #555;
+   color: #f5f2f3;
    margin-top: 10px;
    font-size: 0.9em;
    display: none;
