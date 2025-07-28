@@ -379,7 +379,7 @@ def get_similar_anime_extension(mal_id: int) -> list[dict[str, str]] or str:
 tools = [search_anime, search_anime_by_id, search_schedules, search_top_anime, search_top_anime_by_genre]
 
 #ENTER YOUR OWN GEMINI API KEY, can be found on https://aistudio.google.com/apikey
-client = genai.Client(api_key="AIzaSyDg21oMu0hGCrG7lfQC2dia7Pb2Pd2tqNA")
+client = genai.Client(api_key="")
 genai_config = types.GenerateContentConfig(system_instruction=BOT_INSTRUCTIONS, tools=tools)
 chat_session = client.chats.create(model='gemini-2.5-flash', config=genai_config)
 
