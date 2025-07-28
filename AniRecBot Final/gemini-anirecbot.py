@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, jsonify
 from google import genai
 from google.genai import types
 from jikanpy import Jikan
+import re
 from datetime import date
 from time import sleep
 
@@ -12,8 +13,8 @@ cheerful vibe. When interacting, avoid using overly exaggerated, stereotypical, 
 or phrases that might not be universally understood or could be perceived as cringey by a broad audience. Focus 
 on genuine excitement and clarity in your language.  When asked for details about an anime, you will search 
 MyAnimeList for it. If a search yields multiple results, you will list the options, provide the title, score, 
-and a small summary of the plot, and ask the user to specify which one they are interested in If the user provides a 
-MAL ID, you will use it directly. Don't use bolds, italics, or emojis. You may use emoticons but keep it minimal.
+and a small summary of the plot, and ask the user to specify which one they are interested in. If the user provides a 
+MAL ID, you will use it directly. Don't use bolds, italics, and NEVER USE EMOJIS, only emoticons!
 
 
 IMPORTANT: When a user's request is vague or ambiguous (e.g., "that anime with giant robots"), follow these steps:
@@ -76,14 +77,19 @@ finding the mal_id of a show, then calling search_anime_by_id. As this function 
 airing, it can be used to find a show's release order. Note that this only gives the first page of results, you should
 pass a higher page number to retrieve more results.
 
-search_anime_by_id: When using the 'news' extension, this may return articles with "North American Anime and Manga Releases"
-which are general summaries. While these may contain information about the specific anime you're looking for,
-the user will have to read it by clicking on the URL link. Always ask the user if they'd like a link to any of the articles when searching news!
+search_anime_by_id: When using the 'news' extension, this may return articles with "North American Anime and Manga 
+Releases" which are general summaries. While these may contain information about the specific anime you're looking 
+for, the user will have to read it by clicking on the URL link. Always ask the user if they'd like a link to any of 
+the articles when searching news! When user asks about a specific anime, this function will also return a youtube 
+link for the trailer, let the user know which shows have a trailer available, and ONLY provide it at the end of your 
+response IF the user asks for it. Do NOT provide it when giving a list of anime. ONLY PROVIDE IT FOR ONE SHOW AT A TIME
+DURING RESPONSES
 
-The 'recommendations' argument can be passed alongside a specific mal_id to fetch recommendations for that anime.
-It will return the mal_id for the anime, the anime's title, and votes which determine how highly a show is being
-recommended. You will make a search_anime_by_id call for each of the top few titles, fetch the score and
-synopsis, and list them to the user.
+The 'recommendations' argument can be passed alongside a specific mal_id to fetch recommendations for that anime. It 
+will return the mal_id for the anime, the anime's title, and votes which determine how highly a show is being 
+recommended. You will make a search_anime_by_id call for each of the top few titles, fetch the score, and synopsis, 
+and list them to the user. If youtube url is available, let the user know that you have it, and offer to provide the 
+trailer. ONLY PROVIDE IT FOR ONE SHOW AT A TIME
 
 search_top_anime: When asked for 'top anime' without further specification, first retrieve and present the top 3-5 
 anime by score (critical rating). In the same response, briefly offer the user the option to see anime ranked by 
@@ -123,7 +129,7 @@ def search_anime(query: str, media_type: str = '', pages: int = 1) -> list[dict[
 
 def search_anime_by_id(mal_id: int, extensions: str = '') -> dict[str, str] or list[dict[str, str]]:
     """When passing no extensions, returns a show's mal_id, title, genres, themes, episodes, score, age_rating,
-    airing_status, airing_start_end, studio that worked on the show, and synopsis.
+    airing_status, airing_start_end, studio that worked on the show, an embed url for YouTube trailer, and synopsis.
 
     Args:
         mal_id (int): The MAL id of the anime.
@@ -147,8 +153,11 @@ def search_anime_by_id(mal_id: int, extensions: str = '') -> dict[str, str] or l
                                         "score": search_results.get('score', 'None'),
                                         "age_rating": search_results.get('rating', 'None'),
                                         "airing_status": search_results.get('status'),
-                                        "airing_start_end": search_results.get('string'),
-                                        "synopsis": search_results.get('synopsis', 'None')})
+                                        "airing_start_end": search_results.get('aired', 'None').get('string', 'None'),
+                                        "studios": search_results.get('studios', 'None')[0].get('name', 'None'),
+                                        "embed_url": search_results.get('trailer', 'None').get('embed_url', 'None'),
+                                        "synopsis": search_results.get('synopsis', 'None'),
+                                        "background": search_results.get('background', 'None')})
             return search_results_formatted
 
         except Exception as e:
@@ -173,7 +182,7 @@ def search_top_anime(page: int = 1, filter_type: str = "") -> list[dict[str, str
     Args:
         page (int, optional): Page to search on. When not passing anything, defaults to first page. Use higher numbers
         to paginate through more results.
-        filter_type (str, optional): Filter type to use. Valid options: airing, upcoming (doesn't return score, returns
+        filter_type (str, optional): Filter type to use. Valid options: airing, upcoming (doesn't return score, returns popularity), favorite, bypopularity.
     """
 
     top_anime_list = []
@@ -390,9 +399,18 @@ def chat():
 
     prompt = f"Question: {user_message}"
     response = chat_session.send_message(prompt)
-    print(f"AniRecBot: {response.text}")
+    response_text = response.text
+    print(f"Proxy: {response}")
 
-    return jsonify({"reply": response.text})
+    url_pattern = r"https://www.youtube.com/embed/.+"
+    match = re.search(url_pattern, response.text)
+    youtube_url = None
+    if match:
+        youtube_url = match.group(0)
+        response_text = response.text.replace(youtube_url, "").strip()
+
+    return jsonify({"reply": response_text,
+                   "youtube_embed_url": youtube_url})
 
 
 if __name__ == "__main__":
@@ -402,7 +420,7 @@ print("Goodbye.")
 
 
 #------------------------------------------Ignore Everything Below This------------------------------------------------#
-
+print(jikan.top())
 #print(jikan.top('anime', page=1, parameters={}))
 #print(search_top_anime())
 #print(search_top_anime_by_genre('1'))

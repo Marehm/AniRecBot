@@ -38,24 +38,47 @@
     <button id="sendBtn">Send</button>
   </div>
 
-  <script>
+<script>
     const chatbox = document.getElementById('chatbox');
     const messageInput = document.getElementById('message');
     const sendBtn = document.getElementById('sendBtn');
 
-    function appendMessage(content, sender) {
-      const bubble = document.createElement('div');
-      bubble.classList.add('bubble', sender);
-      bubble.innerText = content;
-      chatbox.appendChild(bubble);
-      chatbox.scrollTop = chatbox.scrollHeight;
+     function appendMessage(data_object, sender) { // Renamed 'content' to 'data_object' for clarity
+    const bubble = document.createElement('div');
+    bubble.classList.add('bubble', sender);
+
+    // Add the text reply
+    const textPart = document.createElement('p'); // Create a paragraph for the text
+    textPart.innerText = data_object.reply;
+    bubble.appendChild(textPart);
+
+    // Check if there's a YouTube embed URL
+    if (data_object.youtube_embed_url) {
+      const videoContainer = document.createElement('div'); // Optional: a div to contain the video, for styling
+      videoContainer.classList.add('video-container'); // You can add CSS for .video-container later if needed
+
+      const iframe = document.createElement('iframe');
+      iframe.setAttribute('width', '530'); // Smaller width for chatbox
+      iframe.setAttribute('height', '300'); // Adjust height proportionally
+      iframe.setAttribute('src', data_object.youtube_embed_url);
+      iframe.setAttribute('frameborder', '0');
+      iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+      iframe.setAttribute('allowfullscreen', ''); // Enable fullscreen option
+
+      videoContainer.appendChild(iframe);
+      bubble.appendChild(videoContainer); // Add the video container (with the iframe inside) to the bubble
     }
+
+    chatbox.appendChild(bubble);
+    chatbox.scrollTop = chatbox.scrollHeight;
+  }
 
     async function sendMessage() {
       const message = messageInput.value.trim();
       if (!message) return;
 
-      appendMessage(message, 'user');
+      // --- CHANGE 1: Pass user message as an object ---
+      appendMessage({ reply: message }, 'user');
       messageInput.value = '';
       document.getElementById('typingIndicator').style.display = 'block';
 
@@ -68,12 +91,15 @@
 
         const data = await res.json();
         if (data.reply) {
-          appendMessage(data.reply, 'bot');
+          // --- CHANGE 2: Pass the entire 'data' object from the bot ---
+          appendMessage(data, 'bot');
         } else {
-          appendMessage("Oops! Something went wrong...", 'bot');
+          // --- CHANGE 3: Pass "Oops" message as an object ---
+          appendMessage({ reply: "Oops! Something went wrong..." }, 'bot');
         }
       } catch (err) {
-        appendMessage("Nyaa~ server error! Gomen 😿", 'bot');
+        // --- CHANGE 4: Pass "Server brainfart" message as an object ---
+        appendMessage({ reply: "Server had a brainfart. Apologies" }, 'bot');
       } finally {
         document.getElementById('typingIndicator').style.display = 'none';
       }
