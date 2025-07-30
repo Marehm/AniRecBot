@@ -420,7 +420,7 @@ print("Goodbye.")
 
 
 #------------------------------------------Ignore Everything Below This------------------------------------------------#
-print(jikan.top())
+#print(jikan.top())
 #print(jikan.top('anime', page=1, parameters={}))
 #print(search_top_anime())
 #print(search_top_anime_by_genre('1'))
